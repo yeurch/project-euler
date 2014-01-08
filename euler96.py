@@ -37,6 +37,7 @@
 # number found in the top left corner of the solution grid above.
 
 import time
+from copy import deepcopy
 
 start = time.time()
 
@@ -57,36 +58,40 @@ class SuDoku:
         s = ''
         for row in range(9):
             s += ' '.join([str(x) for x in self.get_row(row)]) + '\n'
-        return s
+        return s.replace('0','.')
     
     @property
     def signature(self):
         return int(''.join([str(self.get(x,0)) for x in range(3)]))
 
-    def solve(self):
-        while self.__simple_pass() > 0:
-            pass
-
-        while self.__unknown_count > 0:
-            if self.__debug: print('  There are {} unknowns'.format(self.__unknown_count))
+    def solve(self, level=0):
+        if self.__debug: print(' '*level+'  Performing simple passes')
+        n = self.__simple_pass()
+        while n > 0:
+            if self.__debug: print(' '*level+'  Filled {} squares'.format(n))
+            n = self.__simple_pass()
+        
+        if self.__unknown_count > 0:
+            time.sleep(0.2)
+            if self.__debug: print(' '*level+'  There are {} unknowns'.format(self.__unknown_count))
             x,y = [(x,y) for x in range(9) for y in range(9) if self.get(x,y) == 0][0]
-            if self.__debug: print('  First unknown is ({},{})'.format(x,y))
+            if self.__debug: print(' '*level+'  First unknown is ({},{})'.format(x,y))
             possibles = self.possibles(x,y)
-            if self.__debug: print('  Possibilities are', possibles)
+            if self.__debug: print(' '*level+'  Possibilities are', possibles)
             for attempt in possibles:
-                if self.__debug: print('  Setting to ',attempt)
-                self.__rollback_cache.append(self.puzzle)
+                self.__checkpoint()
+                if self.__debug: print(' '*level+'  Setting to ',attempt)
                 self.set_cell(x,y,attempt)
                 self.__unknown_count -= 1
-                solved = False
                 try:
-                    self.solve()
-                    solved = True
-                    break
+                    self.solve(level + 1)
+                    if self.__unknown_count == 0:
+                        break
                 except SolveException:
-                    if self.__debug: print('  SolveException')
-                
-        if self.__unknown_count > 0:
+                    if self.__debug: print(' '*level+'  SolveException')
+                self.__rollback()
+        if self.__debug: print(' '*level+'  Exiting solve, level = '+str(level))
+        if level == 0 and self.__unknown_count > 0:
             raise UnsolvableException('Puzzle has no possible solution')
 
     def get(self,x,y):
@@ -134,10 +139,15 @@ class SuDoku:
                         raise SolveException("No possible values at ({},{})".format(x,y))
         return calculated
 
+    def __checkpoint(self):
+        if self.__debug: print('checkpointing')
+        self.__rollback_cache.append(deepcopy(self.puzzle))
+        
     def __rollback(self):
         if len(self.__rollback_cache) == 0:
             raise Exception('Nothing to rollback')
         
+        if self.__debug: print('rolling back')
         self.puzzle = self.__rollback_cache.pop()
         self.__unknown_count = sum([1 for x in range(9) for y in range(9) if self.get(x,y) == 0])
 
@@ -162,23 +172,33 @@ print(sudoku)
 print('Signature:', sudoku.signature)
 '''
 
+def solve_puzzle(p, lines, debug=False):
+    print ('Solving puzzle', p)
+    puzzle = []
+    for l in range((p-1)*9,p*9):
+        puzzle.append([int(i) for i in lines[l]])
+    sudoku = SuDoku(puzzle, debug)
+    sudoku.solve()
+    print(sudoku)
+    return sudoku.signature
+
 result = 0
 
 with open('euler96_sudoku.txt', 'r') as f:
     lines = [line.strip() for line in f.readlines() if line[0] != 'G']
+    
+    
+specific_puzzle = None # Change this for a puzzle number in the input file to solve a single puzzle.
 
-print(lines)
-num_puzzles = len(lines) // 9
-for p in range(num_puzzles):
-    print ('Solving puzzle', p+1)
-    puzzle = []
-    for l in range(p*9,(p+1)*9):
-        puzzle.append([int(i) for i in lines[l]])
-    sudoku = SuDoku(puzzle, p == 2)
-    sudoku.solve()
-    result += sudoku.signature
+
+if specific_puzzle != None:
+    solve_puzzle(specific_puzzle, lines)
+else:
+    num_puzzles = len(lines) // 9
+    for p in range(1,num_puzzles+1):
+        result += solve_puzzle(p,lines)
         
-print ('Solution is {}'.format(result))
+    print ('Solution is {}'.format(result))
 
 end = time.time()
 print ('Time taken: {:.6f}s'.format(end - start))
