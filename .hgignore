@@ -1,0 +1,10 @@
+# Ignore file for Python
+
+# use glob syntax
+syntax: glob
+
+# Project specific stuff
+
+
+# Ignore Python files
+*.pyc
