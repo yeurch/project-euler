@@ -8,3 +8,4 @@ syntax: glob
 
 # Ignore Python files
 *.pyc
+*.py~
