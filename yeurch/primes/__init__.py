@@ -38,3 +38,26 @@ def is_prime(n):
 			break
 	return True
 		
+def prime_factors(n):
+    if n < 1:
+        raise ValueError('fact() argument should be >= 1')
+    if n == 1:
+        return []  # special case
+    res = []
+    # iterate over all even numbers first.
+    while n % 2 == 0:
+        res.append(2)
+        n //= 2
+    # try odd numbers up to sqrt(n)
+    limit = (n+1)**0.5
+    i = 3
+    while i <= limit:
+        if n % i == 0:
+            res.append(i)
+            n //= i
+            limit = (n+i)**0.5
+        else:
+            i += 2
+    if n != 1:
+        res.append(n)
+    return res
